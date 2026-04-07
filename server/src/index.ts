@@ -13,12 +13,18 @@ const CSV_FILE_PATH = path.join(process.cwd(), 'registrations.csv');
 app.use(cors());
 app.use(express.json());
 
+// Initialize CSV file with headers if it doesn't exist
+if (!fs.existsSync(CSV_FILE_PATH)) {
+  const headers = 'ID,Full Name,Role,Organization,Province,Phone Number,Email Address,Gender,Created At\n';
+  fs.writeFileSync(CSV_FILE_PATH, headers);
+}
+
 // --- Email Configuration ---
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: process.env.EMAIL_USER, // Your Gmail address
-    pass: process.env.EMAIL_PASS, // Your Gmail App Password
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
   },
 });
 
@@ -48,15 +54,52 @@ const sendConfirmationEmail = async (email: string, fullname: string) => {
   };
 
   try {
-    await transporter.sendMail(mailOptions);
-    console.log(`Confirmation email sent to ${email}`);
+    if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+      await transporter.sendMail(mailOptions);
+      console.log(`Confirmation email sent to ${email}`);
+    }
   } catch (error) {
     console.error('Error sending confirmation email:', error);
   }
 };
 
-// --- Database & CSV Helpers ---
-// (The rest of the database and CSV logic remains the same...)
+// SQLite Database Setup
+const db = new sqlite3.Database('./registration.db', (err) => {
+  if (err) {
+    console.error('Error connecting to database:', err.message);
+  } else {
+    console.log('Connected to SQLite database.');
+  }
+});
+
+// Initialize database schema
+db.run(`CREATE TABLE IF NOT EXISTS registrations (
+  id TEXT PRIMARY KEY,
+  fullname TEXT NOT NULL,
+  role TEXT NOT NULL,
+  organization TEXT NOT NULL,
+  province TEXT NOT NULL,
+  phone_number TEXT NOT NULL,
+  email_address TEXT NOT NULL,
+  gender TEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)`);
+
+// Helper to escape CSV values
+const escapeCSV = (val: string) => `"${val.replace(/"/g, '""')}"`;
+
+// Helper to sync CSV with Database
+const syncCSV = () => {
+  db.all('SELECT * FROM registrations ORDER BY created_at DESC', (err, rows: any[]) => {
+    if (err) return console.error('Error syncing CSV:', err.message);
+    
+    let csvContent = 'ID,Full Name,Role,Organization,Province,Phone Number,Email Address,Gender,Created At\n';
+    rows.forEach(row => {
+      csvContent += `${row.id},${escapeCSV(row.fullname)},${escapeCSV(row.role)},${escapeCSV(row.organization)},${escapeCSV(row.province)},${escapeCSV(row.phone_number)},${escapeCSV(row.email_address)},${escapeCSV(row.gender)},${row.created_at}\n`;
+    });
+    fs.writeFileSync(CSV_FILE_PATH, csvContent);
+  });
+};
 
 // Registration Endpoint (Create)
 app.post('/api/register', (req: Request, res: Response) => {
@@ -77,7 +120,7 @@ app.post('/api/register', (req: Request, res: Response) => {
       return res.status(500).json({ error: 'Internal server error.' });
     }
     syncCSV();
-    sendConfirmationEmail(email_address, fullname); // Send the email
+    sendConfirmationEmail(email_address, fullname);
     res.status(201).json({ message: 'Registration successful!', id });
   });
   stmt.finalize();
@@ -140,7 +183,6 @@ app.listen(Number(PORT), '0.0.0.0', () => {
   // Email Configuration Check
   if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
     console.warn('⚠️ WARNING: EMAIL_USER or EMAIL_PASS environment variables are missing.');
-    console.warn('Emails will not be sent until these are configured on Render.');
   } else {
     console.log('✅ Email service is configured and ready.');
   }
