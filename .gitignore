@@ -1,0 +1,9 @@
+node_modules
+dist
+.env
+server/registration.db
+server/registrations.csv
+server/dist
+client/dist
+.DS_Store
+*.log

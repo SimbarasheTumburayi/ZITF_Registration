@@ -1,0 +1,136 @@
+import express, { type Request, type Response } from 'express';
+import cors from 'cors';
+import sqlite3 from 'sqlite3';
+import { v4 as uuidv4 } from 'uuid';
+import fs from 'fs';
+import path from 'path';
+
+const app = express();
+const PORT = process.env.PORT || 5000;
+const CSV_FILE_PATH = path.join(process.cwd(), 'registrations.csv');
+
+app.use(cors());
+app.use(express.json());
+
+// Initialize CSV file with headers if it doesn't exist
+if (!fs.existsSync(CSV_FILE_PATH)) {
+  const headers = 'ID,Full Name,Role,Organization,Province,Phone Number,Email Address,Gender,Created At\n';
+  fs.writeFileSync(CSV_FILE_PATH, headers);
+}
+
+// SQLite Database Setup
+const db = new sqlite3.Database('./registration.db', (err) => {
+  if (err) {
+    console.error('Error connecting to database:', err.message);
+  } else {
+    console.log('Connected to SQLite database.');
+  }
+});
+
+// Initialize database schema
+db.run(`CREATE TABLE IF NOT EXISTS registrations (
+  id TEXT PRIMARY KEY,
+  fullname TEXT NOT NULL,
+  role TEXT NOT NULL,
+  organization TEXT NOT NULL,
+  province TEXT NOT NULL,
+  phone_number TEXT NOT NULL,
+  email_address TEXT NOT NULL,
+  gender TEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)`);
+
+// Helper to escape CSV values
+const escapeCSV = (val: string) => `"${val.replace(/"/g, '""')}"`;
+
+// Helper to sync CSV with Database
+const syncCSV = () => {
+  db.all('SELECT * FROM registrations ORDER BY created_at DESC', (err, rows: any[]) => {
+    if (err) return console.error('Error syncing CSV:', err.message);
+    
+    let csvContent = 'ID,Full Name,Role,Organization,Province,Phone Number,Email Address,Gender,Created At\n';
+    rows.forEach(row => {
+      csvContent += `${row.id},${escapeCSV(row.fullname)},${escapeCSV(row.role)},${escapeCSV(row.organization)},${escapeCSV(row.province)},${escapeCSV(row.phone_number)},${escapeCSV(row.email_address)},${escapeCSV(row.gender)},${row.created_at}\n`;
+    });
+    fs.writeFileSync(CSV_FILE_PATH, csvContent);
+  });
+};
+
+// Registration Endpoint (Create)
+app.post('/api/register', (req: Request, res: Response) => {
+  const { fullname, role, organization, province, phone_number, email_address, gender } = req.body;
+
+  if (!fullname || !role || !organization || !province || !phone_number || !email_address || !gender) {
+    return res.status(400).json({ error: 'All fields are required.' });
+  }
+
+  const id = uuidv4();
+  const createdAt = new Date().toISOString();
+
+  const stmt = db.prepare('INSERT INTO registrations (id, fullname, role, organization, province, phone_number, email_address, gender, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
+  
+  stmt.run(id, fullname, role, organization, province, phone_number, email_address, gender, createdAt, function(err: Error | null) {
+    if (err) {
+      console.error('Error inserting registration:', err.message);
+      return res.status(500).json({ error: 'Internal server error.' });
+    }
+    syncCSV();
+    res.status(201).json({ message: 'Registration successful!', id });
+  });
+  stmt.finalize();
+});
+
+// Update Registration
+app.put('/api/register/:id', (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { fullname, role, organization, province, phone_number, email_address, gender } = req.body;
+
+  const stmt = db.prepare('UPDATE registrations SET fullname = ?, role = ?, organization = ?, province = ?, phone_number = ?, email_address = ?, gender = ? WHERE id = ?');
+  
+  stmt.run(fullname, role, organization, province, phone_number, email_address, gender, id, function(err: Error | null) {
+    if (err) {
+      console.error('Error updating registration:', err.message);
+      return res.status(500).json({ error: 'Internal server error.' });
+    }
+    syncCSV();
+    res.json({ message: 'Registration updated successfully!' });
+  });
+  stmt.finalize();
+});
+
+// Delete Registration
+app.delete('/api/register/:id', (req: Request, res: Response) => {
+  const { id } = req.params;
+  
+  db.run('DELETE FROM registrations WHERE id = ?', id, function(err: Error | null) {
+    if (err) {
+      console.error('Error deleting registration:', err.message);
+      return res.status(500).json({ error: 'Internal server error.' });
+    }
+    syncCSV();
+    res.json({ message: 'Registration deleted successfully!' });
+  });
+});
+
+// List Registrations (Admin Endpoint)
+app.get('/api/registrations', (req: Request, res: Response) => {
+  db.all('SELECT * FROM registrations ORDER BY created_at DESC', (err: Error | null, rows: any[]) => {
+    if (err) {
+      console.error('Error fetching registrations:', err.message);
+      return res.status(500).json({ error: 'Internal server error.' });
+    }
+    res.json(rows);
+  });
+});
+
+// Export to CSV Endpoint
+app.get('/api/export/csv', (req: Request, res: Response) => {
+  if (!fs.existsSync(CSV_FILE_PATH)) {
+    return res.status(404).json({ error: 'No registrations found.' });
+  }
+  res.download(CSV_FILE_PATH, 'ZITF_Registrations.csv');
+});
+
+app.listen(Number(PORT), '0.0.0.0', () => {
+  console.log(`Server is running on port ${PORT}`);
+});
