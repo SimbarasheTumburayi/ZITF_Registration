@@ -62,8 +62,9 @@ function RegistrationForm() {
     }
   };
 
-  // Logic to determine QR code URL (use current URL)
-  const qrUrl = window.location.href;
+  const handlePrint = () => {
+    window.print();
+  };
 
   return (
     <div className="registration-container">
@@ -81,7 +82,8 @@ function RegistrationForm() {
         <p>Zimbabwe International Trade Fair Participant Registration</p>
       </header>
 
-      <form className="registration-form" onSubmit={handleSubmit}>
+      <form className="registration-form no-print" onSubmit={handleSubmit}>
+        {/* ... existing form fields ... */}
         <div className="form-group">
           <label htmlFor="fullname">Full Name</label>
           <input type="text" id="fullname" name="fullname" value={formData.fullname} onChange={handleChange} required placeholder="Enter your full name" />
@@ -121,14 +123,14 @@ function RegistrationForm() {
 
       <div className="qr-section">
         <h3>Mobile Registration</h3>
-        <QRCodeSVG value={qrUrl} size={150} />
+        <div className="qr-display">
+          <QRCodeSVG value={qrUrl} size={200} />
+        </div>
         <p>Scan to register on your phone</p>
-        <p style={{fontSize: '10px', marginTop: '5px', color: '#666'}}>
-          Scan this code to share the registration link.
-        </p>
+        <button onClick={handlePrint} className="print-btn no-print">Print QR Flyer</button>
       </div>
 
-      <footer className="registration-footer">
+      <footer className="registration-footer no-print">
         <p>&copy; 2026 Zimbabwe International Trade Fair. All rights reserved.</p>
         <Link to="/admin" className="admin-link">Admin Access</Link>
       </footer>
