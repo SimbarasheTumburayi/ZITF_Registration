@@ -66,6 +66,8 @@ function RegistrationForm() {
     window.print();
   };
 
+  const qrUrl = window.location.href;
+
   return (
     <div className="registration-container">
       <header className="registration-header">
@@ -83,7 +85,6 @@ function RegistrationForm() {
       </header>
 
       <form className="registration-form no-print" onSubmit={handleSubmit}>
-        {/* ... existing form fields ... */}
         <div className="form-group">
           <label htmlFor="fullname">Full Name</label>
           <input type="text" id="fullname" name="fullname" value={formData.fullname} onChange={handleChange} required placeholder="Enter your full name" />
@@ -143,7 +144,17 @@ function AdminDashboard() {
   const [registrations, setRegistrations] = useState<RegistrationData[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editData, setEditData] = useState<Partial<RegistrationData>>({});
+  const [editData, setEditData] = useState<RegistrationData>({
+    id: '',
+    fullname: '',
+    role: '',
+    organization: '',
+    province: '',
+    phone_number: '',
+    email_address: '',
+    gender: '',
+    created_at: ''
+  });
   const navigate = useNavigate();
 
   useEffect(() => {

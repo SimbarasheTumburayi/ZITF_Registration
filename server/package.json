@@ -1,36 +1,31 @@
 {
   "name": "server",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "ZITF Registration Backend",
+  "main": "dist/index.js",
+  "type": "module",
+  "engines": {
+    "node": "20.x"
+  },
   "scripts": {
     "start": "node dist/index.js",
     "dev": "tsx watch src/index.ts",
     "build": "tsc"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "module",
-  "engines": {
-    "node": "20.x"
-  },
   "dependencies": {
     "cors": "^2.8.6",
     "express": "^5.2.1",
-    "nodemailer": "^8.0.4",
+    "nodemailer": "^6.9.13",
     "sqlite3": "5.1.7",
-    "uuid": "^13.0.0"
+    "uuid": "^10.0.0"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
-    "@types/nodemailer": "^8.0.0",
+    "@types/nodemailer": "^6.4.14",
     "@types/sqlite3": "^3.1.11",
     "@types/uuid": "^10.0.0",
-    "nodemon": "^3.1.14",
-    "ts-node": "^10.9.2",
-    "tsx": "^4.21.0",
-    "typescript": "^6.0.2"
+    "tsx": "^4.7.1",
+    "typescript": "^5.4.2"
   }
 }
