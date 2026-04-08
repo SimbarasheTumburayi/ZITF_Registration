@@ -9,12 +9,11 @@ import nodemailer from 'nodemailer';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const CSV_FILE_PATH = path.join(process.cwd(), 'registrations.csv');
 
 app.use(cors());
 app.use(express.json());
 
-// --- Database Connection (Hybrid: Postgres for Live, SQLite for Local) ---
+// --- Database Connection ---
 const isLive = !!process.env.DATABASE_URL;
 let db: any;
 
@@ -57,9 +56,12 @@ const initDB = async () => {
       gender TEXT NOT NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`;
-  
-  if (isLive) await db.query(createTableQuery);
-  else await db.run(createTableQuery);
+  try {
+    if (isLive) await db.query(createTableQuery);
+    else await db.run(createTableQuery);
+  } catch (err) {
+    console.error('DB Init Error:', err);
+  }
 };
 initDB();
 
@@ -98,6 +100,9 @@ const sendConfirmationEmail = async (email: string, fullname: string) => {
   }
 };
 
+// Helper to escape CSV values
+const escapeCSV = (val: any) => `"${String(val || '').replace(/"/g, '""')}"`;
+
 // --- API Routes ---
 app.post('/api/register', async (req: Request, res: Response) => {
   const { fullname, role, organization, province, phone_number, email_address, gender } = req.body;
@@ -117,6 +122,7 @@ app.post('/api/register', async (req: Request, res: Response) => {
     sendConfirmationEmail(email_address, fullname);
     res.status(201).json({ message: 'Registration successful!', id });
   } catch (err: any) {
+    console.error('Registration error:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -154,6 +160,25 @@ app.delete('/api/register/:id', async (req, res) => {
     res.json({ message: 'Deleted successfully' });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// Dynamic CSV Export (Cloud-Safe)
+app.get('/api/export/csv', async (req, res) => {
+  try {
+    const result = await db.query('SELECT * FROM registrations ORDER BY created_at DESC');
+    const rows = result.rows;
+    
+    let csv = 'ID,Full Name,Role,Organization,Province,Phone Number,Email Address,Gender,Created At\n';
+    rows.forEach((r: any) => {
+      csv += `${r.id},${escapeCSV(r.fullname)},${escapeCSV(r.role)},${escapeCSV(r.organization)},${escapeCSV(r.province)},${escapeCSV(r.phone_number)},${escapeCSV(r.email_address)},${escapeCSV(r.gender)},${r.created_at}\n`;
+    });
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=ZITF_Registrations.csv');
+    res.status(200).send(csv);
+  } catch (err: any) {
+    res.status(500).send('Error generating CSV');
   }
 });
 
