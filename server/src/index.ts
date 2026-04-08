@@ -1,10 +1,7 @@
 import express, { type Request, type Response } from 'express';
 import cors from 'cors';
-import sqlite3 from 'sqlite3';
 import pg from 'pg';
 import { v4 as uuidv4 } from 'uuid';
-import fs from 'fs';
-import path from 'path';
 import nodemailer from 'nodemailer';
 
 const app = express();
@@ -13,37 +10,39 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-// --- Database Connection ---
+// --- Database Connection (Cloud-Safe) ---
 const isLive = !!process.env.DATABASE_URL;
 let db: any;
 
-if (isLive) {
-  console.log('☁️ Connecting to PostgreSQL...');
-  db = new pg.Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false }
-  });
-} else {
-  console.log('🏠 Connecting to local SQLite...');
-  const sqliteDB = new sqlite3.Database('./registration.db');
-  db = {
-    query: (text: string, params: any[]) => new Promise((resolve, reject) => {
-      sqliteDB.all(text.replace(/\$/g, '?'), params, (err, rows) => {
-        if (err) reject(err);
-        else resolve({ rows });
-      });
-    }),
-    run: (text: string, params: any[]) => new Promise((resolve, reject) => {
-      sqliteDB.run(text.replace(/\$/g, '?'), params, (err) => {
-        if (err) reject(err);
-        else resolve(true);
-      });
-    })
-  };
-}
+const initializeDatabase = async () => {
+  if (isLive) {
+    console.log('☁️ Connecting to PostgreSQL...');
+    db = new pg.Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: { rejectUnauthorized: false }
+    });
+  } else {
+    console.log('🏠 Connecting to local SQLite...');
+    // We only load sqlite3 when running locally to prevent cloud crashes
+    const sqlite3 = (await import('sqlite3')).default;
+    const sqliteDB = new sqlite3.Database('./registration.db');
+    db = {
+      query: (text: string, params: any[]) => new Promise((resolve, reject) => {
+        sqliteDB.all(text.replace(/\$/g, '?'), params, (err, rows) => {
+          if (err) reject(err);
+          else resolve({ rows });
+        });
+      }),
+      run: (text: string, params: any[]) => new Promise((resolve, reject) => {
+        sqliteDB.run(text.replace(/\$/g, '?'), params, (err) => {
+          if (err) reject(err);
+          else resolve(true);
+        });
+      })
+    };
+  }
 
-// Initialize Tables
-const initDB = async () => {
+  // Create Table
   const createTableQuery = `
     CREATE TABLE IF NOT EXISTS registrations (
       id TEXT PRIMARY KEY,
@@ -56,14 +55,12 @@ const initDB = async () => {
       gender TEXT NOT NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`;
-  try {
-    if (isLive) await db.query(createTableQuery);
-    else await db.run(createTableQuery);
-  } catch (err) {
-    console.error('DB Init Error:', err);
-  }
+  
+  if (isLive) await db.query(createTableQuery);
+  else await db.run(createTableQuery, []);
 };
-initDB();
+
+initializeDatabase().catch(err => console.error('Database Initialization Error:', err));
 
 // --- Email Configuration ---
 const transporter = nodemailer.createTransport({
@@ -84,7 +81,7 @@ const sendConfirmationEmail = async (email: string, fullname: string) => {
         <h2 style="color: #003366; text-align: center;">Registration Successful</h2>
         <p>Dear <strong>${fullname}</strong>,</p>
         <p>Thank you, you have successfully registered the <strong>ZITF CEIRD Attendance register</strong>.</p>
-        <p>Your details have been securely recorded. We look forward to seeing you there!</p>
+        <p>Your details have been recorded. We look forward to seeing you there!</p>
         <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
         <p style="font-size: 12px; color: #888; text-align: center;">&copy; 2026 ZITF - CEIRD.</p>
       </div>`,
@@ -113,7 +110,7 @@ app.post('/api/register', async (req: Request, res: Response) => {
   const date = new Date().toISOString();
   
   try {
-    const query = 'INSERT INTO registrations (id, fullname, role, organization, province, phone_number, email_address, gender, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)';
+    const query = 'INSERT INTO registrations (id, fullname, role, organization, province, phone_number, email_address, gender, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)';
     const params = [id, fullname, role, organization, province, phone_number, email_address, gender, date];
     
     if (isLive) await db.query(query, params);
@@ -122,14 +119,13 @@ app.post('/api/register', async (req: Request, res: Response) => {
     sendConfirmationEmail(email_address, fullname);
     res.status(201).json({ message: 'Registration successful!', id });
   } catch (err: any) {
-    console.error('Registration error:', err);
     res.status(500).json({ error: err.message });
   }
 });
 
 app.get('/api/registrations', async (req, res) => {
   try {
-    const result = await db.query('SELECT * FROM registrations ORDER BY created_at DESC');
+    const result = await db.query('SELECT * FROM registrations ORDER BY created_at DESC', []);
     res.json(result.rows);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -163,17 +159,13 @@ app.delete('/api/register/:id', async (req, res) => {
   }
 });
 
-// Dynamic CSV Export (Cloud-Safe)
 app.get('/api/export/csv', async (req, res) => {
   try {
-    const result = await db.query('SELECT * FROM registrations ORDER BY created_at DESC');
-    const rows = result.rows;
-    
+    const result = await db.query('SELECT * FROM registrations ORDER BY created_at DESC', []);
     let csv = 'ID,Full Name,Role,Organization,Province,Phone Number,Email Address,Gender,Created At\n';
-    rows.forEach((r: any) => {
+    result.rows.forEach((r: any) => {
       csv += `${r.id},${escapeCSV(r.fullname)},${escapeCSV(r.role)},${escapeCSV(r.organization)},${escapeCSV(r.province)},${escapeCSV(r.phone_number)},${escapeCSV(r.email_address)},${escapeCSV(r.gender)},${r.created_at}\n`;
     });
-
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', 'attachment; filename=ZITF_Registrations.csv');
     res.status(200).send(csv);
