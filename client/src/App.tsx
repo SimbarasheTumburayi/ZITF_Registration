@@ -9,7 +9,6 @@ interface RegistrationData {
   fullname: string;
   role: string;
   organization: string;
-  province: string;
   phone_number: string;
   email_address: string;
   gender: string;
@@ -24,7 +23,6 @@ function RegistrationForm() {
     fullname: '',
     role: '',
     organization: '',
-    province: '',
     phone_number: '',
     email_address: '',
     gender: '',
@@ -51,7 +49,6 @@ function RegistrationForm() {
         fullname: '',
         role: '',
         organization: '',
-        province: '',
         phone_number: '',
         email_address: '',
         gender: '',
@@ -96,10 +93,6 @@ function RegistrationForm() {
         <div className="form-group">
           <label htmlFor="organization">Organization</label>
           <input type="text" id="organization" name="organization" value={formData.organization} onChange={handleChange} required placeholder="Your company or organization" />
-        </div>
-        <div className="form-group">
-          <label htmlFor="province">Province</label>
-          <input type="text" id="province" name="province" value={formData.province} onChange={handleChange} required placeholder="e.g. Bulawayo, Harare" />
         </div>
         <div className="form-group">
           <label htmlFor="phone_number">Phone Number</label>
@@ -180,7 +173,6 @@ function AdminDashboard() {
     fullname: '',
     role: '',
     organization: '',
-    province: '',
     phone_number: '',
     email_address: '',
     gender: '',
@@ -258,7 +250,6 @@ function AdminDashboard() {
                 <th>Full Name</th>
                 <th>Role</th>
                 <th>Organization</th>
-                <th>Province</th>
                 <th>Phone</th>
                 <th>Email</th>
                 <th>Gender</th>
@@ -273,7 +264,6 @@ function AdminDashboard() {
                       <td><input name="fullname" value={editData.fullname} onChange={handleEditChange} /></td>
                       <td><input name="role" value={editData.role} onChange={handleEditChange} /></td>
                       <td><input name="organization" value={editData.organization} onChange={handleEditChange} /></td>
-                      <td><input name="province" value={editData.province} onChange={handleEditChange} /></td>
                       <td><input name="phone_number" value={editData.phone_number} onChange={handleEditChange} /></td>
                       <td><input name="email_address" value={editData.email_address} onChange={handleEditChange} /></td>
                       <td>
@@ -293,7 +283,6 @@ function AdminDashboard() {
                       <td>{reg.fullname}</td>
                       <td>{reg.role}</td>
                       <td>{reg.organization}</td>
-                      <td>{reg.province}</td>
                       <td>{reg.phone_number}</td>
                       <td>{reg.email_address}</td>
                       <td>{reg.gender}</td>
