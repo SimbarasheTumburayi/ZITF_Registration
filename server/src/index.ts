@@ -71,7 +71,21 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+// Verify email configuration on startup
+transporter.verify((error, success) => {
+  if (error) {
+    console.error('❌ EMAIL CONFIGURATION ERROR:', error.message);
+  } else {
+    console.log('✅ Email service is ready to send messages');
+  }
+});
+
 const sendConfirmationEmail = async (email: string, fullname: string) => {
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+    console.error('❌ EMAIL ERROR: Missing EMAIL_USER or EMAIL_PASS environment variables.');
+    return;
+  }
+
   const mailOptions = {
     from: `"ZITF CEIRD" <${process.env.EMAIL_USER}>`,
     to: email,
@@ -88,12 +102,11 @@ const sendConfirmationEmail = async (email: string, fullname: string) => {
   };
 
   try {
-    if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-      await transporter.sendMail(mailOptions);
-      console.log(`✅ Email sent to ${email}`);
-    }
-  } catch (error) {
-    console.error('❌ Email Error:', error);
+    console.log(`Attempting to send email to ${email}...`);
+    await transporter.sendMail(mailOptions);
+    console.log(`✅ Email successfully sent to ${email}`);
+  } catch (error: any) {
+    console.error('❌ NODEMAILER ERROR:', error.message);
   }
 };
 
