@@ -72,7 +72,7 @@ const sendConfirmationEmail = async (email: string, fullname: string) => {
   try {
     console.log(`Attempting to send email via Resend to ${email}...`);
     const { data, error } = await resend.emails.send({
-      from: 'ZITF CEIRD <onboarding@resend.dev>', // Resend default for free accounts
+      from: 'ZITF CEIRD <registration@phase.redcupseries.co.zw>', 
       to: email,
       subject: 'ZITF CEIRD Attendance Register Confirmation',
       html: `
