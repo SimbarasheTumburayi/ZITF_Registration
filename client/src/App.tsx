@@ -66,7 +66,7 @@ function RegistrationForm() {
     window.print();
   };
 
-  const qrUrl = window.location.href;
+  const qrUrl = window.location.origin;
 
   return (
     <div className="registration-container">
@@ -128,13 +128,44 @@ function RegistrationForm() {
           <QRCodeSVG value={qrUrl} size={200} />
         </div>
         <p>Scan to register on your phone</p>
-        <button onClick={handlePrint} className="print-btn no-print">Print QR Flyer</button>
+        <div className="qr-actions no-print">
+          <button onClick={handlePrint} className="print-btn">Print QR Flyer</button>
+          <Link to="/qr" className="view-qr-btn">View Large QR</Link>
+        </div>
       </div>
 
       <footer className="registration-footer no-print">
         <p>&copy; 2026 Zimbabwe International Trade Fair. All rights reserved.</p>
         <Link to="/admin" className="admin-link">Admin Access</Link>
       </footer>
+    </div>
+  );
+}
+
+// --- Large QR Code Page Component ---
+function QRCodePage() {
+  const qrUrl = window.location.origin;
+  const navigate = useNavigate();
+
+  return (
+    <div className="large-qr-container">
+      <div className="large-qr-content">
+        <div className="logo-container">
+          <img src="/zitf-logo.png" alt="ZITF Logo" className="brand-logo" />
+          <img 
+            src="https://ceird.ac.zw/assets/img/logo.png" 
+            alt="CEIRD Logo" 
+            className="brand-logo" 
+            onError={(e) => (e.currentTarget.style.display = 'none')}
+          />
+        </div>
+        <h1>Scan to Register</h1>
+        <div className="magnified-qr">
+          <QRCodeSVG value={qrUrl} size={500} />
+        </div>
+        <p>ZITF 2026 Registration</p>
+        <button onClick={() => navigate('/')} className="back-btn no-print">Back to Form</button>
+      </div>
     </div>
   );
 }
@@ -289,6 +320,7 @@ function App() {
       <Routes>
         <Route path="/" element={<RegistrationForm />} />
         <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/qr" element={<QRCodePage />} />
       </Routes>
     </Router>
   );
