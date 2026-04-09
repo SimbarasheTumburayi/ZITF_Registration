@@ -2,10 +2,8 @@
   "name": "zitf-registration",
   "version": "1.0.0",
   "description": "ZITF 2026 Registration Platform",
-  "scripts": {
-    "install:all": "npm install && cd client && npm install && cd ../server && npm install",
-    "dev": "concurrently \"npm run dev --workspace=server\" \"npm run dev --workspace=client\"",
-    "build": "cd server && npm run build && cd ../client && npm run build"
+  "engines": {
+    "node": "20.x"
   },
   "workspaces": [
     "client",
