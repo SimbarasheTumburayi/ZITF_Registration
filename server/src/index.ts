@@ -2,7 +2,7 @@ import express, { type Request, type Response } from 'express';
 import cors from 'cors';
 import pg from 'pg';
 import { v4 as uuidv4 } from 'uuid';
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -10,7 +10,7 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-// --- Database Connection (Cloud-Safe) ---
+// --- Database Connection ---
 const isLive = !!process.env.DATABASE_URL;
 let db: any;
 
@@ -23,7 +23,6 @@ const initializeDatabase = async () => {
     });
   } else {
     console.log('🏠 Connecting to local SQLite...');
-    // We only load sqlite3 when running locally to prevent cloud crashes
     const sqlite3 = (await import('sqlite3')).default;
     const sqliteDB = new sqlite3.Database('./registration.db');
     db = {
@@ -42,7 +41,6 @@ const initializeDatabase = async () => {
     };
   }
 
-  // Create Table
   const createTableQuery = `
     CREATE TABLE IF NOT EXISTS registrations (
       id TEXT PRIMARY KEY,
@@ -62,53 +60,39 @@ const initializeDatabase = async () => {
 
 initializeDatabase().catch(err => console.error('Database Initialization Error:', err));
 
-// --- Email Configuration ---
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 465,
-  secure: true, // Use SSL/TLS
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
-
-// Verify email configuration on startup
-transporter.verify((error, success) => {
-  if (error) {
-    console.error('❌ EMAIL CONFIGURATION ERROR:', error.message);
-  } else {
-    console.log('✅ Email service is ready to send messages');
-  }
-});
+// --- Email Configuration (Resend) ---
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const sendConfirmationEmail = async (email: string, fullname: string) => {
-  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-    console.error('❌ EMAIL ERROR: Missing EMAIL_USER or EMAIL_PASS environment variables.');
+  if (!process.env.RESEND_API_KEY) {
+    console.error('❌ EMAIL ERROR: Missing RESEND_API_KEY environment variable.');
     return;
   }
 
-  const mailOptions = {
-    from: `"ZITF CEIRD" <${process.env.EMAIL_USER}>`,
-    to: email,
-    subject: 'ZITF CEIRD Attendance Register Confirmation',
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px;">
-        <h2 style="color: #003366; text-align: center;">Registration Successful</h2>
-        <p>Dear <strong>${fullname}</strong>,</p>
-        <p>Thank you, you have successfully registered the <strong>ZITF CEIRD Attendance register</strong>.</p>
-        <p>Your details have been recorded. We look forward to seeing you there!</p>
-        <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
-        <p style="font-size: 12px; color: #888; text-align: center;">&copy; 2026 ZITF - CEIRD.</p>
-      </div>`,
-  };
-
   try {
-    console.log(`Attempting to send email to ${email}...`);
-    await transporter.sendMail(mailOptions);
-    console.log(`✅ Email successfully sent to ${email}`);
+    console.log(`Attempting to send email via Resend to ${email}...`);
+    const { data, error } = await resend.emails.send({
+      from: 'ZITF CEIRD <onboarding@resend.dev>', // Resend default for free accounts
+      to: email,
+      subject: 'ZITF CEIRD Attendance Register Confirmation',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px;">
+          <h2 style="color: #003366; text-align: center;">Registration Successful</h2>
+          <p>Dear <strong>${fullname}</strong>,</p>
+          <p>Thank you, you have successfully registered the <strong>ZITF CEIRD Attendance register</strong>.</p>
+          <p>Your details have been recorded. We look forward to seeing you there!</p>
+          <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+          <p style="font-size: 12px; color: #888; text-align: center;">&copy; 2026 ZITF - CEIRD.</p>
+        </div>`,
+    });
+
+    if (error) {
+      console.error('❌ RESEND ERROR:', error);
+    } else {
+      console.log(`✅ Email successfully sent via Resend! ID: ${data?.id}`);
+    }
   } catch (error: any) {
-    console.error('❌ NODEMAILER ERROR:', error.message);
+    console.error('❌ UNEXPECTED EMAIL ERROR:', error.message);
   }
 };
 
@@ -191,4 +175,6 @@ app.get('/api/export/csv', async (req, res) => {
 
 app.listen(Number(PORT), '0.0.0.0', () => {
   console.log(`🚀 Server running on port ${PORT}`);
+  if (!process.env.RESEND_API_KEY) console.warn('⚠️ RESEND_API_KEY is missing');
+  else console.log('✅ Resend email service configured');
 });
