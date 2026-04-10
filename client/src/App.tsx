@@ -118,7 +118,7 @@ function RegistrationForm() {
       <div className="qr-section">
         <h3>Mobile Registration</h3>
         <div className="qr-display">
-          <QRCodeSVG value={qrUrl} size={200} />
+          <QRCodeSVG value={qrUrl || ''} size={200} />
         </div>
         <p>Scan to register on your phone</p>
         <div className="qr-actions no-print">
@@ -154,7 +154,7 @@ function QRCodePage() {
         </div>
         <h1>Scan to Register</h1>
         <div className="magnified-qr">
-          <QRCodeSVG value={qrUrl} size={500} />
+          <QRCodeSVG value={qrUrl || ''} size={500} />
         </div>
         <p>ZITF 2026 Registration</p>
         <button onClick={() => navigate('/')} className="back-btn no-print">Back to Form</button>
