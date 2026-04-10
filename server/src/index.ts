@@ -107,8 +107,8 @@ app.post('/api/register', async (req: Request, res: Response) => {
   const date = new Date().toISOString();
   
   try {
-    const query = 'INSERT INTO registrations (id, fullname, role, organization, phone_number, email_address, gender, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)';
-    const params = [id, fullname, role, organization, phone_number, email_address, gender, date];
+    const query = 'INSERT INTO registrations (id, fullname, role, organization, province, phone_number, email_address, gender, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)';
+    const params = [id, fullname, role, organization, '', phone_number, email_address, gender, date];
     
     if (isLive) await db.query(query, params);
     else await db.run(query, params);
