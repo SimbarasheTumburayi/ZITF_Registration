@@ -87,3 +87,6 @@ The platform collects the following information:
 
 ## 📄 License
 © 2026 Zimbabwe International Trade Fair. All rights reserved.
+
+---
+*Deployment Update: Fixed dependency resolution (qrcode.react v4.2.0)*
