@@ -167,7 +167,7 @@ function QRCodePage() {
 function AdminDashboard() {
   const [registrations, setRegistrations] = useState<RegistrationData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [password, setPassword] = useState<string | null>(localStorage.getItem('admin_password'));
+  const [password, setPassword] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editData, setEditData] = useState<RegistrationData>({
     id: '',
@@ -184,9 +184,11 @@ function AdminDashboard() {
   useEffect(() => {
     if (!password) {
       const input = window.prompt('Enter Admin Password:');
-      if (input) {
+      if (input === 'Samuel123') {
         setPassword(input);
-        localStorage.setItem('admin_password', input);
+      } else if (input !== null) {
+        alert('Invalid password.');
+        navigate('/');
       } else {
         navigate('/');
       }
@@ -194,7 +196,7 @@ function AdminDashboard() {
   }, [password, navigate]);
 
   useEffect(() => {
-    if (password) {
+    if (password === 'Samuel123') {
       fetchRegistrations();
     }
   }, [password]);
@@ -207,9 +209,9 @@ function AdminDashboard() {
       setRegistrations(response.data);
     } catch (error: any) {
       if (error.response?.status === 401) {
-        alert('Invalid password.');
-        localStorage.removeItem('admin_password');
+        alert('Unauthorized access.');
         setPassword(null);
+        navigate('/');
       } else {
         console.error('Failed to fetch registrations', error);
       }
@@ -220,8 +222,6 @@ function AdminDashboard() {
 
   const handleDownloadCSV = () => {
     if (password) {
-      // For CSV download via URL, we need a slightly different approach or a query param
-      // Since we are using headers, we can fetch the blob or use a temporary link
       axios.get(`${API_BASE_URL}/api/export/csv`, {
         headers: { 'x-admin-password': password },
         responseType: 'blob'
@@ -272,12 +272,11 @@ function AdminDashboard() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('admin_password');
     setPassword(null);
     navigate('/');
   };
 
-  if (!password) return null;
+  if (password !== 'Samuel123') return null;
 
   return (
     <div className="admin-container">
