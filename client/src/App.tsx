@@ -167,6 +167,7 @@ function QRCodePage() {
 function AdminDashboard() {
   const [registrations, setRegistrations] = useState<RegistrationData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [password, setPassword] = useState<string | null>(localStorage.getItem('admin_password'));
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editData, setEditData] = useState<RegistrationData>({
     id: '',
@@ -181,28 +182,66 @@ function AdminDashboard() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetchRegistrations();
-  }, []);
+    if (!password) {
+      const input = window.prompt('Enter Admin Password:');
+      if (input) {
+        setPassword(input);
+        localStorage.setItem('admin_password', input);
+      } else {
+        navigate('/');
+      }
+    }
+  }, [password, navigate]);
+
+  useEffect(() => {
+    if (password) {
+      fetchRegistrations();
+    }
+  }, [password]);
 
   const fetchRegistrations = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/registrations`);
+      const response = await axios.get(`${API_BASE_URL}/api/registrations`, {
+        headers: { 'x-admin-password': password }
+      });
       setRegistrations(response.data);
-    } catch (error) {
-      console.error('Failed to fetch registrations', error);
+    } catch (error: any) {
+      if (error.response?.status === 401) {
+        alert('Invalid password.');
+        localStorage.removeItem('admin_password');
+        setPassword(null);
+      } else {
+        console.error('Failed to fetch registrations', error);
+      }
     } finally {
       setLoading(false);
     }
   };
 
   const handleDownloadCSV = () => {
-    window.open(`${API_BASE_URL}/api/export/csv`, '_blank');
+    if (password) {
+      // For CSV download via URL, we need a slightly different approach or a query param
+      // Since we are using headers, we can fetch the blob or use a temporary link
+      axios.get(`${API_BASE_URL}/api/export/csv`, {
+        headers: { 'x-admin-password': password },
+        responseType: 'blob'
+      }).then(response => {
+        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', 'ZITF_Registrations.csv');
+        document.body.appendChild(link);
+        link.click();
+      }).catch(err => alert('Export failed'));
+    }
   };
 
   const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this registration?')) {
       try {
-        await axios.delete(`${API_BASE_URL}/api/register/${id}`);
+        await axios.delete(`${API_BASE_URL}/api/register/${id}`, {
+          headers: { 'x-admin-password': password }
+        });
         fetchRegistrations();
       } catch (error) {
         alert('Failed to delete registration');
@@ -222,7 +261,9 @@ function AdminDashboard() {
 
   const saveEdit = async () => {
     try {
-      await axios.put(`${API_BASE_URL}/api/register/${editingId}`, editData);
+      await axios.put(`${API_BASE_URL}/api/register/${editingId}`, editData, {
+        headers: { 'x-admin-password': password }
+      });
       setEditingId(null);
       fetchRegistrations();
     } catch (error) {
@@ -230,11 +271,20 @@ function AdminDashboard() {
     }
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem('admin_password');
+    setPassword(null);
+    navigate('/');
+  };
+
+  if (!password) return null;
+
   return (
     <div className="admin-container">
       <header className="admin-header">
         <h1>Admin Dashboard</h1>
         <div className="admin-actions">
+          <button onClick={handleLogout} className="logout-btn">Logout</button>
           <button onClick={handleDownloadCSV} className="csv-btn">Download CSV</button>
           <button onClick={() => navigate('/')} className="back-btn">Back</button>
         </div>

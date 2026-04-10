@@ -158,12 +158,17 @@ body {
   gap: 10px;
 }
 
-.csv-btn, .back-btn {
+.csv-btn, .back-btn, .logout-btn {
   padding: 8px 15px;
   border-radius: var(--border-radius);
   border: none;
   cursor: pointer;
   font-weight: 600;
+}
+
+.logout-btn {
+  background-color: var(--error-color);
+  color: white;
 }
 
 .csv-btn {

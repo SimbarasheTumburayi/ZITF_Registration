@@ -97,6 +97,18 @@ const sendConfirmationEmail = async (email: string, fullname: string) => {
 // Helper to escape CSV values
 const escapeCSV = (val: any) => `"${String(val || '').replace(/"/g, '""')}"`;
 
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'Samuel123';
+
+// --- Auth Middleware ---
+const adminAuth = (req: Request, res: Response, next: any) => {
+  const password = req.headers['x-admin-password'];
+  if (password === ADMIN_PASSWORD) {
+    next();
+  } else {
+    res.status(401).json({ error: 'Unauthorized: Admin access required.' });
+  }
+};
+
 // --- API Routes ---
 app.post('/api/register', async (req: Request, res: Response) => {
   const { fullname, role, organization, phone_number, email_address, gender } = req.body;
@@ -120,7 +132,7 @@ app.post('/api/register', async (req: Request, res: Response) => {
   }
 });
 
-app.get('/api/registrations', async (req, res) => {
+app.get('/api/registrations', adminAuth, async (req, res) => {
   try {
     const result = await db.query('SELECT id, fullname, role, organization, phone_number, email_address, gender, created_at FROM registrations ORDER BY created_at DESC', []);
     res.json(result.rows);
@@ -129,7 +141,7 @@ app.get('/api/registrations', async (req, res) => {
   }
 });
 
-app.put('/api/register/:id', async (req, res) => {
+app.put('/api/register/:id', adminAuth, async (req, res) => {
   const { id } = req.params;
   const { fullname, role, organization, phone_number, email_address, gender } = req.body;
   try {
@@ -145,7 +157,7 @@ app.put('/api/register/:id', async (req, res) => {
   }
 });
 
-app.delete('/api/register/:id', async (req, res) => {
+app.delete('/api/register/:id', adminAuth, async (req, res) => {
   try {
     const query = 'DELETE FROM registrations WHERE id=$1';
     if (isLive) await db.query(query, [req.params.id]);
@@ -156,7 +168,7 @@ app.delete('/api/register/:id', async (req, res) => {
   }
 });
 
-app.get('/api/export/csv', async (req, res) => {
+app.get('/api/export/csv', adminAuth, async (req, res) => {
   try {
     const result = await db.query('SELECT id, fullname, role, organization, phone_number, email_address, gender, created_at FROM registrations ORDER BY created_at DESC', []);
     let csv = 'ID,Full Name,Role,Organization,Phone Number,Email Address,Gender,Created At\n';
