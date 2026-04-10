@@ -172,5 +172,5 @@ app.get('/api/export/csv', async (req, res) => {
 });
 
 app.listen(Number(PORT), '0.0.0.0', () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`🚀 Server version 1.0.1 running on port ${PORT}`);
 });
